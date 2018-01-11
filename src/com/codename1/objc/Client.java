@@ -159,7 +159,12 @@ public class Client {
      * @return The return value of the message call.
      */
     public Object send(Pointer receiver, String selector, Object... args){
-        return send(receiver, sel(selector), args);
+        try {
+            return send(receiver, sel(selector), args);
+        } catch (Runtime.MethodSignatureNotFound ex) {
+            if (ex.selector == null) ex.selector = selector;
+            throw ex;
+        }
     }
    
     /**
@@ -180,7 +185,14 @@ public class Client {
      * @return The return value of the message call.
      */
     public Object send(String receiver, Pointer selector, Object... args){
-        return send(cls(receiver), selector, args);
+        try {
+            return send(cls(receiver), selector, args);
+        } catch (Runtime.MethodSignatureNotFound ex) {
+            if (ex.target == null) {
+                ex.target = receiver;
+            }
+            throw ex;
+        }
     }
     
     /**
@@ -201,7 +213,13 @@ public class Client {
      * @return The return value of the message call.
      */
     public Object send(String receiver, String selector, Object... args){
-        return send(cls(receiver), sel(selector), args);
+        try {
+            return send(cls(receiver), sel(selector), args);
+        } catch (Runtime.MethodSignatureNotFound ex) {
+            if (ex.target == null) ex.target = receiver;
+            if (ex.selector == null) ex.selector = selector;
+            throw ex;
+        }
     }
     
     

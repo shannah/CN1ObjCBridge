@@ -4,6 +4,7 @@
  */
 package com.codename1.objc.mappers;
 
+import com.codename1.objc.Objc;
 import com.codename1.objc.TypeMapping;
 
 
@@ -38,6 +39,31 @@ public class ScalarMapping implements TypeMapping {
 
     @Override
     public Object jToC(Object jVar, String signature, TypeMapping root) {
+        if (jVar instanceof Objc.ObjcResult) {
+            Objc.ObjcResult res = (Objc.ObjcResult)jVar;
+            char firstChar = signature.charAt(0);
+            
+            switch (firstChar){
+                case 'i':
+                case 'I':
+                case 's':
+                case 'S':
+                case 'l':
+                case 'c':
+                case 'B':
+                    return res.asInt();
+                case 'q':
+                case 'Q':
+                    return res.asLong();
+                case 'f':
+                    return res.asFloat();
+                case 'd':
+                    return res.asFloat();
+                
+                    
+            }
+            
+        }
         return jVar;
     }
     

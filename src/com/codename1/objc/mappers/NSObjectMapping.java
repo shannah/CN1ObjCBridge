@@ -63,7 +63,7 @@ public class NSObjectMapping implements TypeMapping{
             //////System.out.println("Converting string ["+jVar+"] to string");
             return Runtime.getInstance().str((String)jVar);
         }
-        if ( Peerable.class.isInstance(jVar)){
+        if ( jVar instanceof Peerable){
             return ((Peerable)jVar).getPeer();
         } else {
             return (Pointer)jVar;

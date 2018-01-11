@@ -459,6 +459,13 @@ public class Runtime {
     }
     
     public Pointer sel_getUid(String name) {
+        int pos = name.lastIndexOf(':');
+        if (pos >= 0 && pos != name.length()-1) {
+            // Common mistake... selector missing trailing colon
+            Log.p("[WARNING] Selector '"+name+"' should be '"+name+":'.  Adding trailing colon automatically.  Please fix this in your source.");
+            name = name + ":";
+            
+        }
         return p(rt.sel_getUid(name));
     }
     public boolean sel_isEqual(Pointer lhs, Pointer rhs) {
@@ -502,12 +509,19 @@ public class Runtime {
     }
     
     public void dispatch_sync(Runnable r) {
+        final Throwable[] ex = new Throwable[1];
         Runnable r2 = ()->{
             try (AutoreleasePool p = new AutoreleasePool()) {
                 r.run();
+            } catch (Throwable t) {
+                Log.e(t);
+                ex[0] = t;
             }
         };
         rt.dispatch_sync(addCallback(r2));
+        if (ex[0] != null) {
+            throw new RuntimeException("Exception thrown inside dispatch_sync", ex[0]);
+        }
         
     }
     
@@ -520,12 +534,15 @@ public class Runtime {
         Runnable r2 = ()->{
             try (AutoreleasePool p = new AutoreleasePool()) {
                 r.run();
+            } catch (Throwable t) {
+                Log.p(t.getMessage());
+                Log.e(t);
             }
         };
         rt.dispatch_async(addCallback(r2));
     }
     
-    public static class Block {
+    public static class Block implements Peerable {
         final Pointer block;
         final int callbackId;
         
@@ -558,6 +575,16 @@ public class Runtime {
         
         public boolean isNativeActive() {
             return nativeActive;
+        }
+
+        @Override
+        public Pointer getPeer() {
+            return block;
+        }
+
+        @Override
+        public void setPeer(Pointer peer) {
+            throw new RuntimeException("setPeer() not allowed on blocks");
         }
     }
     
@@ -696,7 +723,17 @@ public class Runtime {
      * @see msgDouble()
      */
     public Pointer msg(String cls, String msg, Object... args){
-        return msg(cls(cls), msg, args);
+        if (args.length > 0 && msg.lastIndexOf(':') != msg.length()-1) {
+            Log.p("Selector '"+msg+"' should end with a colon if it accepts args.  Adding colon automatically.  Please correct this in your source.");
+            msg = msg + ":";
+        }
+        try {
+            return msg(cls(cls), msg, args);
+        } catch (MethodSignatureNotFound ex) {
+            if (ex.target == null) ex.target = cls;
+            if (ex.selector == null) ex.selector = msg;
+            throw ex;
+        }
     }
     
     /**
@@ -719,7 +756,14 @@ public class Runtime {
      * @see msgDouble()
      */
     public Pointer msg(String cls, Pointer msg, Object... args){
-        return msg(cls(cls), msg, args);
+        try {
+            return msg(cls(cls), msg, args);
+        } catch (MethodSignatureNotFound ex) {
+            if (ex.target == null) {
+                ex.target = cls;
+            }
+            throw ex;
+        }
     }
     
     
@@ -743,6 +787,10 @@ public class Runtime {
      * @see msgDouble()
      */
     public Pointer msg(Pointer receiver, String msg, Object... args){
+        if (args.length > 0 && msg.lastIndexOf(':') != msg.length()-1) {
+            Log.p("Selector '"+msg+"' should end with a colon if it accepts args.  Adding colon automatically.  Please correct this in your source.");
+            msg = msg + ":";
+        }
         return objc_msgSend(receiver, sel(msg), args);
     }
     
@@ -791,6 +839,10 @@ public class Runtime {
      * @return A Pointer return value of the message.
      */
     public Pointer msgPointer(Pointer receiver, String selector, Object... args){
+        if (args.length > 0 && selector.lastIndexOf(':') != selector.length()-1) {
+            Log.p("Selector '"+selector+"' should end with a colon if it accepts args.  Adding colon automatically.  Please correct this in your source.");
+            selector = selector + ":";
+        }
         return msgPointer(receiver, sel(selector), args);
     }
     
@@ -815,6 +867,10 @@ public class Runtime {
      * @return A Pointer return value of the message.
      */
     public Pointer msgPointer(String receiver, String selector, Object... args){
+        if (args.length > 0 && selector.lastIndexOf(':') != selector.length()-1) {
+            Log.p("Selector '"+selector+"' should end with a colon if it accepts args.  Adding colon automatically.  Please correct this in your source.");
+            selector = selector + ":";
+        }
         return msgPointer(cls(receiver), sel(selector), args);
     }
     
@@ -858,6 +914,10 @@ public class Runtime {
      * @return An int value returned by the message.
      */
     public int msgInt(String receiver, String selector, Object... args){
+        if (args.length > 0 && selector.lastIndexOf(':') != selector.length()-1) {
+            Log.p("Selector '"+selector+"' should end with a colon if it accepts args.  Adding colon automatically.  Please correct this in your source.");
+            selector = selector + ":";
+        }
         return msgInt(cls(receiver), sel(selector), args);
     }
     
@@ -872,6 +932,10 @@ public class Runtime {
      * @return An int value returned by the message.
      */
     public int msgInt(Pointer receiver, String selector, Object... args){
+        if (args.length > 0 && selector.lastIndexOf(':') != selector.length()-1) {
+            Log.p("Selector '"+selector+"' should end with a colon if it accepts args.  Adding colon automatically.  Please correct this in your source.");
+            selector = selector + ":";
+        }
         return msgInt(receiver, sel(selector), args);
     }
     
@@ -915,6 +979,10 @@ public class Runtime {
      * @return Boolean return value of the message.
      */
     public boolean msgBoolean(String receiver, String selector, Object... args){
+        if (args.length > 0 && selector.lastIndexOf(':') != selector.length()-1) {
+            Log.p("Selector '"+selector+"' should end with a colon if it accepts args.  Adding colon automatically.  Please correct this in your source.");
+            selector = selector + ":";
+        }
         return msgBoolean(cls(receiver), sel(selector), args);
     }
     
@@ -929,6 +997,10 @@ public class Runtime {
      * @return Boolean return value of the message.
      */
     public boolean msgBoolean(Pointer receiver, String selector, Object... args){
+        if (args.length > 0 && selector.lastIndexOf(':') != selector.length()-1) {
+            Log.p("Selector '"+selector+"' should end with a colon if it accepts args.  Adding colon automatically.  Please correct this in your source.");
+            selector = selector + ":";
+        }
         return msgBoolean(receiver, sel(selector), args);
     }
     
@@ -978,6 +1050,10 @@ public class Runtime {
      * @return The string return value of the message.
      */
     public String msgString(String receiver, String selector, Object... args){
+        if (args.length > 0 && selector.lastIndexOf(':') != selector.length()-1) {
+            Log.p("Selector '"+selector+"' should end with a colon if it accepts args.  Adding colon automatically.  Please correct this in your source.");
+            selector = selector + ":";
+        }
         return msgString(cls(receiver), sel(selector), args);
     }
     
@@ -994,6 +1070,10 @@ public class Runtime {
      * @return The string return value of the message.
      */
     public String msgString(Pointer receiver, String selector, Object... args){
+        if (args.length > 0 && selector.lastIndexOf(':') != selector.length()-1) {
+            Log.p("Selector '"+selector+"' should end with a colon if it accepts args.  Adding colon automatically.  Please correct this in your source.");
+            selector = selector + ":";
+        }
         return msgString(receiver, sel(selector), args);
     }
     
@@ -1039,6 +1119,10 @@ public class Runtime {
      * @return The double return value of the message
      */
     public double msgDouble(String receiver, String selector, Object... args){
+        if (args.length > 0 && selector.lastIndexOf(':') != selector.length()-1) {
+            Log.p("Selector '"+selector+"' should end with a colon if it accepts args.  Adding colon automatically.  Please correct this in your source.");
+            selector = selector + ":";
+        }
         return msgDouble(cls(receiver), sel(selector), args);
     }
     
@@ -1054,8 +1138,46 @@ public class Runtime {
      * @return The double return value of the message
      */
     public double msgDouble(Pointer receiver, String selector, Object... args){
+        if (args.length > 0 && selector.lastIndexOf(':') != selector.length()-1) {
+            Log.p("Selector '"+selector+"' should end with a colon if it accepts args.  Adding colon automatically.  Please correct this in your source.");
+            selector = selector + ":";
+        }
         return msgDouble(receiver, sel(selector), args);
     }
+    
+    public static class MethodSignatureNotFound extends RuntimeException {
+        String target;
+        String selector;
+        public MethodSignatureNotFound() {
+            
+        }
+
+        @Override
+        public String getMessage() {
+            return "Method signature not found for selector ["+selector+"] on target "+target;
+        }
+
+        @Override
+        public String toString() {
+            return getMessage();
+        }
+        
+        
+        
+        
+    }
+    
+    /**
+     * Exception thrown when a class cannot be found.
+     */
+    public static class ObjCClassNotFound extends RuntimeException {
+        String className;
+        public ObjCClassNotFound(String className) {
+            super("Objective-C class not found: "+className);
+            this.className = className;
+        }
+    }
+    
     
     /**
      * Sends a message with the option of coercing the inputs and outputs. This variant
@@ -1085,7 +1207,10 @@ public class Runtime {
         Object[] originalArgs = args;
         
         Pointer methodSignature = msgPointer(receiver, "methodSignatureForSelector:", selector);
-       
+        if (methodSignature == null || methodSignature.address == 0) {
+            Log.p("No method signature found for provided selector");
+            throw new MethodSignatureNotFound();
+        }
         int numArgs = (int)msg(methodSignature, "numberOfArguments").getInt();
         if ( numArgs ==2   &&  numArgs != args.length+2 ){
             throw new RuntimeException("Wrong argument count.  The selector "+selName(selector)+" requires "+(numArgs-2)+" arguments, but received "+args.length);
@@ -1093,6 +1218,10 @@ public class Runtime {
         
         
         Pointer returnTypePtr = msg(methodSignature, "methodReturnType");
+        if (returnTypePtr == null || returnTypePtr.address == 0) {
+            Log.p("No method signature found for provided selector");
+            throw new IllegalArgumentException("No return type found for selector");
+        }
         String returnTypeSignature = returnTypePtr.getString(0);
         if ( numArgs == 0 && returnTypeSignature == null ){
             return msg(receiver, selector, args);
@@ -1247,6 +1376,9 @@ public class Runtime {
         return ptr.getString(0);
     }
     
+    
+    
+    
     /**
      * Wraps the given value in the appropriate ByReference subclass according
      * to the provided signature.  This is a useful method in cases where
@@ -1395,11 +1527,21 @@ public class Runtime {
         
     }
     
-    
+    /**
+     * Class for working with pointers to Structs
+     */
     public static class Struct {
+        // Pointer to a struct
         Pointer ptr;
+        
+        // Sizes of struct entries in bytes
         int[] sizes;
         
+        /**
+         * Creates a new struct
+         * @param nsValue The NSValue pointer that contains the struct
+         * @param sizes The sizes of the entries in bytes.
+         */
         public Struct(Pointer nsValue, int... sizes) {
             this.ptr = new Pointer(instance.rt.getNSValueAsBytes(nsValue.address));
             this.sizes = sizes;
@@ -1430,7 +1572,7 @@ public class Runtime {
 
         
         protected void finalize() throws Throwable {
-            instance.rt.free(this.ptr.address);
+            instance.rt.release(ptr.address);
         }
         
         

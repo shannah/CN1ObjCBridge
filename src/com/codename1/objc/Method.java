@@ -14,15 +14,28 @@ public abstract class Method {
     private String selectorName;
     public Method(String protocolName, String selectorName) {
         Pointer protocol = Runtime.getInstance().objc_getProtocol(protocolName);
+        if (protocol == null || protocol.address == 0) {
+            throw new RuntimeException("Protocol "+protocolName+" not found");
+        }
         Pointer selector = Runtime.getInstance().sel(selectorName);
+        if (selector == null || selector.address == 0) {
+            throw new RuntimeException("Selector "+selectorName+" of protocol "+protocolName+" not found");
+        }
         Pointer signatureRequired = Runtime.getInstance().protocol_getMethodSignature(protocol, selector, true, true);
         Pointer signatureOptional = Runtime.getInstance().protocol_getMethodSignature(protocol, selector, false, true);
-        signature = signatureRequired.address == 0 ?signatureRequired : signatureOptional;
+        signature = signatureRequired.address != 0 ?signatureRequired : signatureOptional;
+        if (signature == null || signature.address == 0) {
+            throw new RuntimeException("Method Signature for selector "+selectorName+" on protocol "+protocolName+" not found");
+        }
         this.selectorName = selectorName;
     }
     
     public Method(String signatureStr) {
-        signature = Runtime.getInstance().msgPointer(Runtime.getInstance().cls("NSMethodSignature"), "signatureWithObjCTypes:",Runtime.getInstance().stringToUTF8String(signatureStr));
+        Pointer strPointer = Runtime.getInstance().stringToUTF8String(signatureStr);
+        if (strPointer == null || strPointer.address == 0) {
+            throw new RuntimeException("Signature string "+signatureStr+" produced a null value when converted to a UTF8 String");
+        }
+        signature = Runtime.getInstance().msgPointer(Runtime.getInstance().cls("NSMethodSignature"), "signatureWithObjCTypes:", strPointer);
         
     }
     

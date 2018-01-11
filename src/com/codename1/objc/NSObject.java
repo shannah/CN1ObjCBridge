@@ -6,6 +6,7 @@ package com.codename1.objc;
 
 
 import com.codename1.io.Log;
+import com.codename1.objc.Pointer.ByReference;
 import com.codename1.objc.Pointer.DoubleByReference;
 import com.codename1.objc.Pointer.LongByReference;
 import com.codename1.objc.Pointer.PointerByReference;
@@ -236,6 +237,7 @@ public class NSObject extends Proxy implements PeerableRecipient {
         Method method = methodForSelector(selName(selector));
         if ( method != null){
             Object[] args = new Object[new Long(numArgs).intValue()-2];
+            ByReference[] refArgs = new ByReference[args.length];
             for ( int i=2; i<numArgs; i++){
 
                 Pointer argumentSigAddr = pSig.sendPointer("getArgumentTypeAtIndex:", i);
@@ -245,7 +247,7 @@ public class NSObject extends Proxy implements PeerableRecipient {
                     DoubleByReference ptrRef = new DoubleByReference();
 
                     Runtime.getInstance().msg(invocation, "getArgument:atIndex:", ptrRef.getPointer(), i);
-
+                    refArgs[i-2] = ptrRef;
                     args[i-2] = TypeMapper
                                 .getInstance()
                                 .cToJ(
@@ -259,6 +261,7 @@ public class NSObject extends Proxy implements PeerableRecipient {
 
                     Runtime.getInstance().msg(invocation, "getArgument:atIndex:", ptrRef.getPointer(), i);
 
+                    refArgs[i-2] = ptrRef;
                     args[i-2] = TypeMapper
                                 .getInstance()
                                 .cToJ(
@@ -280,7 +283,9 @@ public class NSObject extends Proxy implements PeerableRecipient {
                 // We should release the arguments now since we retained them before
                 // to prevent memory leaks.
                 for ( int i=0; i<args.length; i++){
-                    Proxy.release(args[i]);
+                    if (refArgs[i] != null) {
+                        Runtime.getInstance().free(refArgs[i].getPointer());
+                    }
                 }
 
                 Pointer returnType = pSig.sendPointer("methodReturnType");

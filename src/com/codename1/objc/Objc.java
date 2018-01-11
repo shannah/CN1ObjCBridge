@@ -27,11 +27,19 @@ public class Objc {
     /**
      * A wrapper for return values from {@link #eval(java.lang.String, java.lang.Object...) }
      */
-    public static class ObjcResult {
+    public static class ObjcResult implements Peerable {
         Object result;
         
         private ObjcResult(Object result) {
             this.result = result;
+        }
+        
+        public boolean isPointer() {
+            return result instanceof Pointer || result instanceof Peerable;
+        }
+        
+        public boolean isString() {
+            return result instanceof String;
         }
         
         /**
@@ -66,6 +74,27 @@ public class Objc {
                 return ((Number)res).intValue();
             } else if (res instanceof String) {
                 return Integer.parseInt((String)res);
+            } else {
+                throw new RuntimeException("Result cannot be returned as int");
+            }
+        }
+        
+        /**
+         * If result was an int, this returns the int.
+         * @return 
+         */
+        public long asLong() {
+            Object res = result;
+            if (res == null) {
+                return 0;
+            } else if (res instanceof Proxy) {
+                return ((Proxy)res).getPeer().address;
+            } else if (res instanceof Pointer) {
+                return ((Pointer)res).address;
+            } else if (res instanceof Number) {
+                return ((Number)res).longValue();
+            } else if (res instanceof String) {
+                return Long.parseLong((String)res);
             } else {
                 throw new RuntimeException("Result cannot be returned as int");
             }
@@ -171,6 +200,16 @@ public class Objc {
         public ObjcResult msgSend(String script, Object... args) {
             return eval(asPointer(), script, args);
         }
+
+        @Override
+        public Pointer getPeer() {
+            return asPointer();
+        }
+
+        @Override
+        public void setPeer(Pointer peer) {
+            result = peer;
+        }
         
     }
     
@@ -186,6 +225,8 @@ public class Objc {
         
     }
     
+    
+    
     /**
     * Evaluates an expression in the Objective-c runtime, and returns the result.
     * @param script The script to evaluate.
@@ -196,6 +237,37 @@ public class Objc {
         return eval(null, script, args);
     }
     
+    public static class ObjectiveCException extends RuntimeException {
+        String expression;
+        Object[] args;
+        Pointer target;
+        //Throwable cause;
+
+        public ObjectiveCException(Pointer target, String expression, Object[] args, Throwable cause) {
+            super(cause);
+            this.expression = expression;
+            this.target = target;
+            this.args = args;
+                    
+        }
+
+        @Override
+        public String getMessage() {
+            
+            String out = "Exception while processing Objective-C expression ["+expression+"] on target "+target+" and args "+Arrays.toString(args);
+            if (getCause() != null) {
+                out += "\nCaused by "+getCause().getMessage();
+            }
+            return out;
+        }
+
+        @Override
+        public String toString() {
+            return getMessage();
+        }
+        
+    }
+    
     /**
      * Evaluates an expression in the Objective-c runtime and returns the result.
      * @param target The initial target object to send first message in chain to.
@@ -204,29 +276,39 @@ public class Objc {
      * @return The return value.
      */
     public static ObjcResult eval(Pointer target, String script, Object... args) {
-        //Log.p("[eval] "+script);
-        String[] chain = Util.split(script, ".");
-        //Log.p("[eval] Commands: "+Arrays.toString(chain));
-        Client c = Client.getInstance();
-        int len = chain.length;
-        int argIndex = 0;
-        for (int i=0; i<len; i++) {
-            String command = chain[i];
-            if (target == null) {
-                target = Runtime.getInstance().cls(command);
-            } else {
-                int numArgs = countArgsForSelector(command);
-                Object[] cmdArgs = new Object[numArgs];
-                System.arraycopy(args, argIndex, cmdArgs, 0, numArgs);
-                if (i == len-1) {
-                    //Log.p("[eval] Running command "+command+" with args "+Arrays.toString(cmdArgs)+" with target "+target);
-                    return new ObjcResult(c.send(target, command, cmdArgs));
-                } else {
-                    //Log.p("[eval] Getting pointer from command "+command+" with args "+Arrays.toString(cmdArgs)+" with target "+target);
-                    target = c.sendPointer(target, command, cmdArgs);
-                }
-                
+        try {
+            //Log.p("[eval] "+script);
+            String[] chain = Util.split(script, ".");
+            //Log.p("[eval] Commands: "+Arrays.toString(chain));
+            Client c = Client.getInstance();
+            int len = chain.length;
+            if (len == 0) {
+                throw new IllegalArgumentException("Empty script passed to eval.  "+script);
             }
+            int argIndex = 0;
+            for (int i=0; i<len; i++) {
+                String command = chain[i];
+                if (target == null) {
+                    target = Runtime.getInstance().cls(command);
+                    if (target == null || target.address == 0) {
+                        throw new Runtime.ObjCClassNotFound(command);
+                    }
+                } else {
+                    int numArgs = countArgsForSelector(command);
+                    Object[] cmdArgs = new Object[numArgs];
+                    System.arraycopy(args, argIndex, cmdArgs, 0, numArgs);
+                    if (i == len-1) {
+                        //Log.p("[eval] Running command "+command+" with args "+Arrays.toString(cmdArgs)+" with target "+target);
+                        return new ObjcResult(c.send(target, command, cmdArgs));
+                    } else {
+                        //Log.p("[eval] Getting pointer from command "+command+" with args "+Arrays.toString(cmdArgs)+" with target "+target);
+                        target = c.sendPointer(target, command, cmdArgs);
+                    }
+
+                }
+            }
+        } catch (Throwable t) {
+            throw new ObjectiveCException(target, script, args, t);
         }
         throw new RuntimeException("Script did not terminate");
     }
@@ -307,7 +389,7 @@ public class Objc {
     
     
     
-    public static class DelegateObject {
+    public static class DelegateObject implements Peerable {
         private final NSObject cls;
         
         public DelegateObject(Method... methods) {
@@ -343,6 +425,16 @@ public class Objc {
             cls.addMethod(m.getSelectorName(), m);
             return this;
         }
+
+        @Override
+        public Pointer getPeer() {
+            return getObjectPointer();
+        }
+
+        @Override
+        public void setPeer(Pointer peer) {
+            cls.setPeer(peer);
+        }
         
     }
     
@@ -360,7 +452,7 @@ public class Objc {
      * @see #makeBlock(java.lang.Runnable) 
      * @see Block
      */
-    public static class CallbackMethod {
+    public static class CallbackMethod implements Peerable {
         private final NSObject cls;
         private final String selectorName;
         
@@ -410,6 +502,16 @@ public class Objc {
          */
         public Pointer getObjectPointer() {
             return cls.getPeer();
+        }
+
+        @Override
+        public Pointer getPeer() {
+            return getObjectPointer();
+        }
+
+        @Override
+        public void setPeer(Pointer peer) {
+            cls.setPeer(peer);
         }
         
         
@@ -466,11 +568,15 @@ public class Objc {
     
     public static void presentViewController(Pointer controller, boolean animated, Runnable onCompletion) {
         Objc.eval(
-                "CodenameOne_GLViewController.instance.presentViewController:animated:completion",
+                "CodenameOne_GLViewController.instance.presentViewController:animated:completion:",
                 controller,
                 animated,
                 onCompletion
         );
         
+    }
+    
+    public static void dismissViewController(Pointer controller, boolean animated, Runnable onCompletion) {
+        Objc.eval(controller, "dismissViewControllerAnimated:completion:", animated, onCompletion);
     }
 }

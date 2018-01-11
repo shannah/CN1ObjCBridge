@@ -97,7 +97,7 @@ typedef struct _ffim_type
 
 #if LONG_MAX == 2147483647
 # if FFI_LONG_LONG_MAX != FFI_64_BIT_MAX
- #error "no 64-bit data type supported"
+// #error "no 64-bit data type supported"
 # endif
 #elif LONG_MAX != FFI_64_BIT_MAX
  #error "long size not supported"

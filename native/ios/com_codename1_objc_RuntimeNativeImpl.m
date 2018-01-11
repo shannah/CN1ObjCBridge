@@ -250,7 +250,7 @@
 }
 
 -(void)objc_msgSend_stret:(long long)param param1:(long long)param1 param2:(long long)param2 param3:(NSString*)param3{
-    objc_msgSend_stret((id)param1, (void*)param2, [param3 UTF8String]);
+    //objc_msgSend_stret((id)param1, (void*)param2, [param3 UTF8String]);
     
 }
 
@@ -298,7 +298,8 @@
 }
 
 -(long long)class_getMethodImplementation_stret:(long long)param param1:(long long)param1{
-    return class_getMethodImplementation_stret(param, param1);
+    //return class_getMethodImplementation_stret(param, param1);
+    return 0;
 }
 
 -(long long)class_respondsToSelector:(long long)param param1:(long long)param1{
@@ -335,6 +336,9 @@
 
 -(long long)protocol_getMethodSignature:(long long)param param1:(long long)param1 param2:(BOOL)param2 param3:(BOOL)param3{
     struct objc_method_description theDescription = protocol_getMethodDescription(param,param1, param2, param3);
+    if (theDescription.types == NULL) {
+        return 0;
+    }
     return [NSMethodSignature signatureWithObjCTypes:theDescription.types];
 }
 

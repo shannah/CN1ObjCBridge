@@ -4,6 +4,7 @@
  */
 package com.codename1.objc.mappers;
 
+import com.codename1.objc.Objc;
 import com.codename1.objc.Pointer;
 import com.codename1.objc.TypeMapping;
 
@@ -23,6 +24,15 @@ public class StringMapping implements TypeMapping{
 
     @Override
     public Object jToC(Object jVar, String signature, TypeMapping root) {
+        if (jVar instanceof Objc.ObjcResult) {
+            Objc.ObjcResult res = (Objc.ObjcResult)jVar;
+            if (res.isPointer()) {
+                return res.asPointer();
+            } else {
+                return res.asString();
+            }
+            
+        }
         return jVar;
     }
     
