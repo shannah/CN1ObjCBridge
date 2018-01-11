@@ -12,6 +12,7 @@ import com.codename1.ui.Display;
 import com.codename1.ui.PeerComponent;
 import com.codename1.ui.geom.Point2D;
 import com.codename1.ui.geom.Rectangle2D;
+import com.codename1.util.StringUtil;
 import java.util.Arrays;
 
 
@@ -278,6 +279,7 @@ public class Objc {
     public static ObjcResult eval(Pointer target, String script, Object... args) {
         try {
             //Log.p("[eval] "+script);
+            script = StringUtil.replaceAll(script, " ", "");
             String[] chain = Util.split(script, ".");
             //Log.p("[eval] Commands: "+Arrays.toString(chain));
             Client c = Client.getInstance();
@@ -579,4 +581,10 @@ public class Objc {
     public static void dismissViewController(Pointer controller, boolean animated, Runnable onCompletion) {
         Objc.eval(controller, "dismissViewControllerAnimated:completion:", animated, onCompletion);
     }
+    
+    public static boolean isSupported() {
+        return Runtime.getInstance().isSupported();
+    }
 }
+
+
