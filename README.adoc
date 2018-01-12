@@ -2,9 +2,25 @@
 
 A library to access the Objective-C runtime from Java code in Codename One, when running on iOS.  This is based on the  https://github.com/shannah/Java-Objective-C-Bridge[Java Objective-C Bridge] library for Mac OS X, but has been modified significantly to run on iOS, and to provide an API that is convenient to use inside a Codename One application.
 
+By its nature, this library is only useful when running on iOS.  You should ensure that you don't run this code on other platforms.  You can accomplish this with:
+
+[source,java]
+----
+if (Objc.isSupported()) {
+   // Run some code that interacts with Objective-C
+
+}
+----
+
 == vs Native Interfaces
 
-Since you can already access Objective-C in Codename One apps using native interfaces, it is reasonable to wonder why a bridge like this is necessary.
+Since you can already access Objective-C in Codename One apps using native interfaces, it is reasonable to wonder why a bridge like this is necessary.  Some advantages of this library over using native interfaces include:
+
+. No Need For an Interface.  Native interfaces involve a lot of structure.  This bridge allows you to access all libraries in the Objective-C runtime (any linked framework or library), directly from Java.
+. Blocks.  Create blocks in Java that you can pass to objective-C APIs that require them for callbacks.
+. Delegate objects.  Register Java objects as delegates for your view controllers or views without any special setup.
+. ... more to come...
+
 
 == Examples
 
