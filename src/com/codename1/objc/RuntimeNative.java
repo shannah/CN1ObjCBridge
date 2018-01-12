@@ -155,6 +155,7 @@ public interface RuntimeNative extends NativeInterface {
     public long getNSValueAsBytes(long nsValue);
     
     public long createBlock(int id);
+    public long createBlockWithSignature(long signature, long target, long selector);
     public void releaseBlock(long blockPtr);
     
     public void retain(long obj);

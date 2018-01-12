@@ -6,6 +6,7 @@
 package com.codename1.objc;
 
 import com.codename1.io.Log;
+import com.codename1.objc.Objc.CallbackMethod;
 import com.codename1.objc.Pointer.ByReference;
 import com.codename1.objc.Pointer.ByteByReference;
 import com.codename1.objc.Pointer.DoubleByReference;
@@ -18,6 +19,7 @@ import com.codename1.system.NativeLookup;
 import com.codename1.ui.ComCodename1ObjcAccessor;
 
 import com.codename1.ui.PeerComponent;
+import com.codename1.util.SuccessCallback;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -552,6 +554,7 @@ public class Runtime {
         private Block(int callbackId, Pointer block) {
             this.callbackId = callbackId;
             this.block = block;
+            
         }
         
         public void releaseNative() {
@@ -564,8 +567,10 @@ public class Runtime {
         
         public void removeCallback() {
             if (callbackActive) {
-                instance.callbacks.remove(callbackId);
-                callbackActive = false;
+                if (callbackId >= 0) {
+                    instance.callbacks.remove(callbackId);
+                    callbackActive = false;
+                }
             }
         }
         
@@ -592,6 +597,25 @@ public class Runtime {
         int id = addCallback(r);
         
         return new Block(id, new Pointer(rt.createBlock(id)));
+    }
+    
+    public Block createBlock(Method m) {
+        CallbackMethod cbm = new CallbackMethod(m);
+        if (cbm.getObjectPointer() == null || cbm.getObjectPointer().address == 0) {
+            throw new RuntimeException("Failed to create callback method.  Produced a null object pointer");
+        }
+        Block blk = new Block(-1, 
+                new Pointer(rt.createBlockWithSignature(
+                        m.getSignature().address, 
+                        cbm.getObjectPointer().address,
+                        cbm.getSelector().address
+                ))
+        );
+        
+        // For some reason this causes an error.
+        // I guess it gets released on its own??
+        //Objc.eval(cbm.getObjectPointer(), "release");
+        return blk;
     }
     
     public void retain(Pointer obj) {
@@ -1178,6 +1202,9 @@ public class Runtime {
         }
     }
     
+    static void throwRuntimeException(String msg) {
+        throw new RuntimeException(msg);
+    }
     
     /**
      * Sends a message with the option of coercing the inputs and outputs. This variant
@@ -1236,7 +1263,12 @@ public class Runtime {
             
             for ( int i=0; i<args.length; i++ ){
                 if (args[i] instanceof Runnable) {
-                    args[i] = Runtime.getInstance().createBlock((Runnable)args[i]);
+                    args[i] = createBlock((Runnable)args[i]);
+                    createdBlocks[i] = (Block)args[i];
+                    args[i] = createdBlocks[i].block;
+                }
+                if (args[i] instanceof Method) {
+                    args[i] = createBlock((Method)args[i]);
                     createdBlocks[i] = (Block)args[i];
                     args[i] = createdBlocks[i].block;
                 }

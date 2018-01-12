@@ -35,7 +35,73 @@
 }
 
 -(double)objc_msgSend_fpret:(long long)param param1:(long long)param1 param2:(NSString*)param2{
-    NSLog(@"objc_msgSendSuper_fpret is not implemented");
+    NSData *data = [param2 dataUsingEncoding:NSUTF8StringEncoding];
+    NSArray *nsargs = (NSArray*)[NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    
+    ffim_cif cif;
+    ffim_type *args[[nsargs count] + 2];
+    void *values[[nsargs count] + 2];
+    
+    int* intValues[[nsargs count] + 2];
+    double doubleValues[[nsargs count] + 2];
+    float floatValues[[nsargs count] + 2];
+    void* pointerValues[[nsargs count] + 2];
+    
+    
+    char *s;
+    
+    /* Initialize the argument info vectors */
+    args[0] = &ffim_type_pointer;
+    pointerValues[0] = (void*)param;
+    values[0] = &(pointerValues[0]);
+    args[1] = &ffim_type_pointer;
+    pointerValues[1] = (void*)param1;
+    values[1] = &(pointerValues[1]);
+    double retVal;
+    
+    
+    
+    
+    int index=2;
+    for (NSDictionary* item in nsargs) {
+        NSString* type = [item objectForKey:@"type"];
+        NSObject* val = [item objectForKey:@"value"];
+        if ([type isEqualToString:@"String"]) {
+            args[index] = &ffim_type_pointer;
+            pointerValues[index] = (void*)[((NSString*)val) UTF8String];
+            values[index] = &(pointerValues[index]);
+        } else if ([type isEqualToString:@"int"]) {
+            args[index] = &ffim_type_sint32;
+            intValues[index] = (JAVA_INT)[((NSNumber*)val) intValue];
+            values[index] = &(intValues[index]);
+        } else if ([type isEqualToString:@"float"]) {
+            args[index] = &ffim_type_float;
+            floatValues[index] = (float)[((NSNumber*)val) floatValue];
+            values[index] = &(floatValues[index]);
+        } else if ([type isEqualToString:@"double"]) {
+            args[index] = &ffim_type_double;
+            doubleValues[index] = (double)[((NSNumber*)val) doubleValue];
+            values[index] = &(doubleValues[index]);
+        } else if ([type isEqualToString:@"pointer"]) {
+            void* ptr = (void*)[((NSString*)val) longLongValue];
+            args[index] = &ffim_type_pointer;
+            pointerValues[index] = ptr;
+            values[index] = &(pointerValues[index]);
+        }
+        index++;
+    }
+    
+    /* Initialize the cif */
+    if (ffi_mini_prep_cif_var(&cif, FFIM_DEFAULT_ABI, 2, [nsargs count] + 2,
+                              &ffim_type_double, args) == FFIM_OK)
+    {
+        
+        ffi_mini_call(&cif, ((double(*)(id,SEL,...))objc_msgSend_fpret), &retVal, values);
+        /* rc now holds the result of the call to puts */
+        return (double)retVal;
+        
+    }
+    
     return 0;
 }
 
@@ -359,7 +425,9 @@
 }
 
 -(float)getPointerValueFloat:(long long)param{
-    return *((float*)param);
+    float out = *((float*)param);
+    
+    return out;
 }
 
 -(long long)malloc_int:(int)param{
@@ -457,6 +525,82 @@
     
     return (long long)Block_copy(simpleBlock);
 }
+-(long long)createBlockWithSignature:(long long)param param1:(long long)param1 param2:(long long)param2 {
+    NSMethodSignature* signature = (NSMethodSignature*)param;
+    NSObject* target = (NSObject*)param1;
+    SEL selector = (SEL)param2;
+    
+    int numArgs = [signature numberOfArguments]-2;
+    if (numArgs == 0) {
+        return (long long)Block_copy(^{
+            [target performSelector:selector];
+        });
+    } else if (numArgs == 1) {
+        const char* argType = [signature getArgumentTypeAtIndex:2];
+        if (strcmp(argType, "i") == 0) {
+            return (long long)Block_copy(^(int arg){
+                ((void(*)(id, SEL, int))objc_msgSend)(target, selector, arg);
+            });
+        } else if (strcmp(argType, "s") == 0) {
+            return (long long)Block_copy(^(short arg){
+                ((void(*)(id, SEL, short))objc_msgSend)(target, selector, arg);
+            });
+        } else if (strcmp(argType, "c") == 0) {
+            return (long long)Block_copy(^(char arg){
+                ((void(*)(id, SEL, char))objc_msgSend)(target, selector, arg);
+            });
+        } else if (strcmp(argType, "l") == 0) {
+            return (long long)Block_copy(^(long arg){
+                ((void(*)(id, SEL, long))objc_msgSend)(target, selector, arg);
+            });
+        } else if (strcmp(argType, "q") == 0) {
+            return (long long)Block_copy(^(long long arg){
+                ((void(*)(id, SEL, long long))objc_msgSend)(target, selector, arg);
+            });
+        } else if (strcmp(argType, "C") == 0) {
+            return (long long)Block_copy(^(unsigned char arg){
+                ((void(*)(id, SEL, unsigned char))objc_msgSend)(target, selector, arg);
+            });
+        } else if (strcmp(argType, "I") == 0) {
+            return (long long)Block_copy(^(unsigned int arg){
+                ((void(*)(id, SEL, unsigned int))objc_msgSend)(target, selector, arg);
+            });
+        } else if (strcmp(argType, "S") == 0) {
+            return (long long)Block_copy(^(unsigned short arg){
+                ((void(*)(id, SEL, unsigned short))objc_msgSend)(target, selector, arg);
+            });
+        } else if (strcmp(argType, "L") == 0) {
+            return (long long)Block_copy(^(unsigned long arg){
+                ((void(*)(id, SEL, unsigned long))objc_msgSend)(target, selector, arg);
+            });
+        } else if (strcmp(argType, "Q") == 0) {
+            return (long long)Block_copy(^(unsigned long long arg){
+                ((void(*)(id, SEL, unsigned long long))objc_msgSend)(target, selector, arg);
+            });
+        } else if (strcmp(argType, "f") == 0) {
+            return (long long)Block_copy(^(float arg){
+                ((void(*)(id, SEL, float))objc_msgSend)(target, selector, arg);
+            });
+        } else if (strcmp(argType, "d") == 0) {
+            return (long long)Block_copy(^(double arg){
+                ((void(*)(id, SEL, double))objc_msgSend)(target, selector, arg);
+            });
+        } else if (strcmp(argType, "*") == 0) {
+            return (long long)Block_copy(^(const char* arg){
+                ((void(*)(id, SEL, const char*))objc_msgSend)(target, selector, arg);
+            });
+        } else if (strcmp(argType, "@") == 0) {
+            return (long long)Block_copy(^(id arg){
+                ((void(*)(id, SEL, id))objc_msgSend)(target, selector, arg);
+            });
+        } else {
+            com_codename1_objc_Runtime_throwRuntimeException___java_lang_String(CN1_THREAD_GET_STATE_PASS_ARG fromNSString(CN1_THREAD_GET_STATE_PASS_ARG @"Unsupported argument type for block"));
+        }
+    } else {
+        com_codename1_objc_Runtime_throwRuntimeException___java_lang_String(CN1_THREAD_GET_STATE_PASS_ARG fromNSString(CN1_THREAD_GET_STATE_PASS_ARG @"Currently only zero and single-arg blocks are supported"));
+    };
+    return 0;
+}
 
 -(void)releaseBlock:(long long)param {
     Block_release((void*)param);
@@ -492,6 +636,9 @@
 
 -(void)setPointerValue_float:(long long)param param1:(float)param1{
     *((float*)param) = param1;
+    
+    float f = *((float*)param);
+    int foo = 1;
 }
 
 -(NSString*)ivar_getTypeEncoding:(long long)param{

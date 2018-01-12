@@ -1,0 +1,274 @@
+= Codename One Objective-C Bridge
+
+A library to access the Objective-C runtime from Java code in Codename One, when running on iOS.  This is based on the  https://github.com/shannah/Java-Objective-C-Bridge[Java Objective-C Bridge] library for Mac OS X, but has been modified significantly to run on iOS, and to provide an API that is convenient to use inside a Codename One application.
+
+== vs Native Interfaces
+
+Since you can already access Objective-C in Codename One apps using native interfaces, it is reasonable to wonder why a bridge like this is necessary.
+
+== Examples
+
+=== Using `Objc.eval()`
+
+The foundation of the Objective-C bridge is the `eval()` method, which allows you to send messages to the Objective-C runtime.  It will return an `ObjCResult` object which is just a wrapper around the actual result, which can be a `Pointer`, `String`, or primitive value like a `double`.
+
+NOTE: `eval()` allows you to send messages to classes and objects in the objective-c runtime.  This is not the same as evaluating arbitrary objective-c syntax expressions. I.e. you can't just paste Objective-C source code into this method and expect it to work.
+
+**Calling Class Methods**
+
+[source,java]
+----
+// Get a UIColor blue instance
+//https://developer.apple.com/documentation/uikit/uicolor/1621947-bluecolor?language=objc
+Pointer blue = eval('UIColor.blueColor').asPointer();
+  // UIColor* button = [UIColor blueColor];
+
+
+// Get reference to CodenameOne_GLViewController instance
+Pointer cn1ViewController = eval('CodenameOne_GLViewController.instance').asPointer();
+  // CodenameOne_GLViewController* cn1ViewController = [CodenameOne_GLViewController instance];
+
+// Create a UIButton
+Pointer button = eval("UIButton.buttonWithType:", 0).asPointer();
+  // UIButton* button = [UIButton buttonWithType:0];
+----
+
+**Calling Instance Methods**
+
+[source,java]
+----
+Pointer button = eval("UIButton.buttonWithType:", 0).asPointer();
+eval(button, "setTitle:forState:", "Show View", 0);
+    // [button setTitle:@"Show View" forState:0]
+----
+
+**Chaining Messages**
+
+You can chain messages together using "dot" notation.  E.g.
+
+[source,java]
+----
+Pointer date = eval("NSDate.alloc.init").asPointer();
+// Equivalent to:
+// Pointer date = eval("NSDate.alloc").asPointer();
+// eval(date, "init");
+----
+
+=== Getting and Setting Properties
+
+You can get and set properties on objects using `eval()`.  E.g.
+
+[source,java]
+----
+Pointer customer = eval("Customer.alloc.init").asPointer();
+eval(customer, "setFirstName:", "Steve");
+String firstName = eval(customer, "firstName").asString();
+----
+
+However you can use the `Objc.getProperty()` and `Objc.setProperty()` methods to make this easier.  E.g.
+
+[source,java]
+----
+Pointer customer = eval("Customer.alloc.init").asPointer();
+Objc.setProperty(customer, "firstName", "Steve");
+String firstName = Objc.getProperty(customer, "firstName").asString();
+----
+
+This can cut down on typos as you don't have to worry about the "setter" method naming conventions.
+
+=== Boxed Properties
+
+Currently structs are problematic.  You can't call methods that return a struct (pointers to structs: YES, structs themselves: NO).  You can mitigate this problem slightly by using `Objc.getBoxedProperty()` and `Objc.setBoxedProperty()` to get and set these properties.  These methods wrap Objective-C's KVC getters and setters to automatically box structs (and primitives) in an `NSValue` pointer when they are retrieved, and unbox them when the are set.
+
+For example, `UIView.bounds` is a `CGRect` which is a struct, so we can't simply call `button.bounds` to get its bounds.  We need to do:
+
+[source,java]
+----
+Pointer bounds = Objc.getBoxedProperty(myButton, "bounds").asPointer();
+----
+
+For common struct types like CGRect, and CGPoint there are convenience methods to turn these into Rectangle2D and Point2D.  But more work is required to provide better struct support in the future.
+
+
+=== Runnables as Blocks
+
+If you pass a `Runnable` as a parameter to `eval()` it will be wrapped in an Objective-C block.
+
+[source,java]
+----
+Objc.eval(
+        "CodenameOne_GLViewController.instance.presentViewController:animated:completion:",
+        controller,
+        true,
+        (Runnable)()->{
+            Log.p("This runs after animation is complete");
+        })
+);
+
+// [[CodenameOne_GLViewController instance] presentViewController:controller animated:YES completion:^{
+//      NSLog(@"This runs after animation is complete");
+// }]])
+----
+
+
+=== Create Callbacks
+
+Use `Objc.makeCallback()` to generate a single-method anonymous Objective-C class that can be passed to methods that expect both a target object and a selector.  The following example creates a callback that will receive touch events from a UIButton.
+
+[source,java]
+----
+Pointer button = eval("UIButton.buttonWithType:", 0).asPointer();
+CallbackMethod cb = Objc.makeCallback(()->{
+    Log.p("Button was clicked");
+});
+eval(button, "addTarget:action:forControlEvents:", cb, cb.getSelector(), 1<<6);
+  // Note: 1<<6 is the value of the UIControlEventTouchUpInside constant
+  // https://developer.apple.com/documentation/uikit/uicontrolevents/uicontroleventtouchupinside
+  // https://developer.apple.com/documentation/uikit/uicontrol/1618259-addtarget?language=objc
+----
+
+NOTE: `1<<6` is the value `UIControlEventTouchUpInside` (https://developer.apple.com/documentation/uikit/uicontrolevents/uicontroleventtouchupinside[See Apple docs]).
+
+See Apple's documentation for the https://developer.apple.com/documentation/uikit/uicontrol/1618259-addtarget?language=objc[addTarget:action:forControlEvents:] method.
+
+The above example creates a callback method `cb`, which dynamically generates an instance of NSObject, and defines a single method on it.  The https://developer.apple.com/documentation/uikit/uicontrol/1618259-addtarget?language=objc[addTarget:action:forControlEvents:] method expects you to pass a target (you pass the CallbackMethod object), and a selector that it should call on that object.  You can use the `getSelector()` method to retrieve this selector.
+
+
+=== Delegate Objects
+
+Another common pattern in Objective-C is to provide a delegate that conforms to a protocol.  The delegate would generally implement a handful of methods which would be called in response to certain events, when the object is set as a ViewController's delegate.
+
+[source,java]
+----
+DelegateObject delegate = Objc.makeDelegate()
+
+    //https://docs.scandit.com/5.5/ios/protocol_s_b_s_scan_delegate-p.html
+    // - (void) overlayController:		(nonnull SBSOverlayController *) 	overlayController
+    //        didCancelWithStatus:		(nullable NSDictionary *) 	status
+    .add("barcodePicker:didScan:", Method.create(ArgType.Void, new ArgType[]{ArgType.Object, ArgType.Object}, args->{
+        Pointer picker = Method.getArgAsPointer(args[0]);
+        Pointer session = Method.getArgAsPointer(args[1]);
+
+        Log.p("Scanning ocurred");
+
+        return null;
+    }))
+
+    //https://docs.scandit.com/5.5/ios/protocol_s_b_s_overlay_controller_did_cancel_delegate-p.html
+    // - (void) overlayController:		(nonnull SBSOverlayController *) 	overlayController
+    //        didCancelWithStatus:		(nullable NSDictionary *) 	status
+    .add("overlayController:didCancelWithStatus:", Method.create(ArgType.Void, new ArgType[]{ArgType.Object, ArgType.Object}, args-> {
+
+        Log.p("Scanning was cancelled");
+
+        return null;
+    }));
+
+
+Objc.setProperty(picker, "scanDelegate", delegate);
+    // picker.scanDelegate = delegate;
+Objc.setProperty(overlayController, "cancelDelegate", delegate);
+    // overlayController.cancelDelegate = delegate;
+
+----
+
+The above example creates an object with two methods, `barcodePicker:didScan:`, and `overlayController:didCancelWithStatus:` which comply with protocols for the API in question.  We use `Method.create()` to create the methods themselves.  `Method.create` takes 3 args
+
+1. Return type. The return type of the method.
+2. Arg types.  The parameter types for the method.
+3. A `MethodBody` object that defines the actual code that will run.  This is most conveniently provided as a lambda.
+
+=== Methods as Blocks
+
+Above you saw that `Runnable` parameters are converted to Objective-C blocks by `eval()`.  The resulting block will by a no-arg block with void return.  If the use case calls for a block with a parameter, you can use a Method instead.  E.g. Using the speech recognition API requires us to call the `requestAuthorization:` method with the following signature:
+
+
+[source]
+----
++ (void)requestAuthorization:(void (^)(SFSpeechRecognizerAuthorizationStatus status))handler;
+----
+
+I.e. it takes a block as a parameter, which takes a single argument.  The docs indicate that this argument is a Swift enum, which is exposed to Objective-C as an int.  So we require a block that takes an `int` as a parameter.  The objective-c for this call would be something like:
+
+[source]
+----
+[SFSpeechRecognizer requestAuthorization:^(int status){
+    if (status == SFSpeechRecognizerAuthorizationStatusAuthorized) {
+        NSLog(@"We are authorized for speech recognition");
+    }
+}];
+----
+
+To do this in Java, we would do
+
+[source,java]
+----
+eval("SFSpeechRecognizer.requestAuthorization:", Method.create(ArgType.Int, args->{
+    if (Method.getArgAsInt(args[0]) == 0) { // the status for authorized
+      Log.p("We are authorized for speech recognition");
+    }
+}));
+----
+
+
+
+=== Creating a Native Component
+
+Use the `Objc.createPeerComponent()` method to create and wrap a `UIView` inside a Codename One `PeerComponent` so that it can be used seamlessly in your UI.  This method takes a callback in which you should define your "builder" method, which builds and returns the `UIView`.  This builder method is run on the main thread (not the Codename One EDT) which is generally necessary for interaction with iOS native views.  The following example creates a UIButton and wraps it in a PeerComponent so that it can be added to the UI.
+
+[source,java]
+----
+import static com.codename1.objc.ObjC.eval;
+...
+// We're on the EDT
+PeerComponent cmp = Objc.createPeerComponent(()->{
+    // This callback runs synchronously (inside dispatch_sync()) on app main thread so that we
+    // can create and interact with UIKit safely
+
+    // NOTE:  This block is wrapped in an autorelease pool.  You should autorelease
+    // any objects you create here to prevent memory leaks.
+
+    Pointer button = eval("UIButton.buttonWithType:", 0).asPointer();
+    eval(button, "setTitle:forState:", "Show View", 0);
+    eval(button, "setTitleColor:forState:", eval("UIColor.blueColor"), 0);
+    CallbackMethod cb = Objc.makeCallback(()->{
+        Log.p("Button was clicked");
+    });
+    eval(button, "addTarget:action:forControlEvents:", cb, cb.getSelector(), 1<<6);
+
+    // The result is passed back to the EDT
+    // You don't need to retain this reference -- createPeerComponent() handles that
+    return button;
+});
+----
+
+
+=== Mixing in your Own Objective-C Classes
+
+Working directly in Java is nice, but you run into situations where you would prefer to work directly in Objective-C for parts of your app.  For example, if you need to call methods that take structs as parameters, or return structs as parameters, you may need to create your own wrapper that you intend to call from Java.  Alternatively, you might prefer to keep a certain module in pure objective-C to make it easier to debug in Xcode - or to make it easier to incorporate snippets of code you find online.
+
+Well this is easy.
+
+Just add your Objective-C code into the "native/ios" folder of your project, and it will be automatically and fully accessible through the bridge.  You don't need to do anything special.
+
+E.g.  Create a file named "HelloWorld.m" into native/ios.
+
+[source]
+----
+#import <Foundation/Foundation.h>
+
+@implementation HelloWorld : NSObject {
+
+  +(void) hello {
+      NSLog(@"Hello From objective-c");
+  }
+
+}
+----
+
+Then you can call this from Java:
+
+[source,java]
+----
+eval("HelloWorld.hello");
+----

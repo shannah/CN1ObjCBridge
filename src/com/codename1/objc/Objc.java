@@ -13,6 +13,7 @@ import com.codename1.ui.PeerComponent;
 import com.codename1.ui.geom.Point2D;
 import com.codename1.ui.geom.Rectangle2D;
 import com.codename1.util.StringUtil;
+import com.codename1.util.SuccessCallback;
 import java.util.Arrays;
 
 
@@ -389,7 +390,9 @@ public class Objc {
         return Runtime.getInstance().createBlock(r);
     }
     
-    
+    public static Block makeBlock(Method m) {
+        return Runtime.getInstance().createBlock(m);
+    }
     
     public static class DelegateObject implements Peerable {
         private final NSObject cls;
@@ -460,7 +463,7 @@ public class Objc {
         
         public CallbackMethod(Runnable r) {
             cls = new NSObject("NSObject");
-            cls.addMethod("doCallback", new Method("v@:") {
+            cls.addMethod("invoke", new Method("v@:") {
 
                 @Override
                 public Object invoke(Object... args) {
@@ -469,8 +472,27 @@ public class Objc {
                 }
                 
             });
-            selectorName = "doCallback";
+            selectorName = "invoke";
             
+        }
+        
+        public CallbackMethod(Method m) {
+            cls = new NSObject("NSObject");
+            if (cls == null || cls.getPeer() == null || cls.getPeer().address == 0) {
+                throw new RuntimeException("Failed to create peer object in CallbackMethod");
+            }
+            String selector = "invoke";
+            int numArgs = m.getNumberOfArguments();
+            if (numArgs > 0) {
+                selector += "WithArg:";
+            }
+            for (int i=1; i<numArgs; i++) {
+                selector += "arg"+i+":";
+            }
+            
+            
+            cls.addMethod(selector, m);
+            selectorName = selector;
         }
         
         

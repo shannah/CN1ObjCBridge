@@ -8,6 +8,7 @@ package com.codename1.objc;
 import com.codename1.io.Log;
 import com.codename1.objc.Pointer.ByReference;
 import com.codename1.objc.Pointer.DoubleByReference;
+import com.codename1.objc.Pointer.FloatByReference;
 import com.codename1.objc.Pointer.LongByReference;
 import com.codename1.objc.Pointer.PointerByReference;
 
@@ -244,7 +245,8 @@ public class NSObject extends Proxy implements PeerableRecipient {
                 String argumentSignature = argumentSigAddr.getString(0);
 
                 if ( "fd".indexOf(argumentSignature.substring(0,1)) != -1 ){
-                    DoubleByReference ptrRef = new DoubleByReference();
+                    ByReference ptrRef = argumentSignature.charAt(0) == 'f' ? 
+                            new FloatByReference() :new DoubleByReference();
 
                     Runtime.getInstance().msg(invocation, "getArgument:atIndex:", ptrRef.getPointer(), i);
                     refArgs[i-2] = ptrRef;

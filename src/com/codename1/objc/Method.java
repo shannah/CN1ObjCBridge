@@ -5,11 +5,50 @@
  */
 package com.codename1.objc;
 
+import com.codename1.util.SuccessCallback;
+
 /**
  *
  * @author shannah
  */
 public abstract class Method {
+    
+    public static enum ArgType {
+        Char("c"),
+        Int("i"),
+        Short("s"),
+        Long("l"),
+        LongLong("q"),
+        UnsignedChar("C"),
+        UnsignedInt("I"),
+        UnsignedShort("S"),
+        UnsignedLong("L"),
+        UnsignedLongLong("Q"),
+        Float("f"),
+        Double("d"),
+        Bool("B"),
+        Void("v"),
+        CString("*"),
+        Object("@"),
+        Class("#"),
+        Pointer("^v");
+        
+        String code;
+        
+        ArgType(String code) {
+            this.code = code;
+        }
+        
+        public String getCode() {
+            return code;
+        }
+    }
+    
+    
+    public static interface MethodBody {
+        public Object invoke(Object... args);
+    }
+    
     private final Pointer signature;
     private String selectorName;
     public Method(String protocolName, String selectorName) {
@@ -37,6 +76,103 @@ public abstract class Method {
         }
         signature = Runtime.getInstance().msgPointer(Runtime.getInstance().cls("NSMethodSignature"), "signatureWithObjCTypes:", strPointer);
         
+    }
+    
+    public Method(ArgType returnType, ArgType[] argTypes) {
+        this(createSignature(returnType) + "@:" + createSignature(argTypes));
+    }
+    
+    public static Method create(ArgType argType, MethodBody body) {
+        return new Method(null, new ArgType[]{argType}) {
+
+            @Override
+            public Object invoke(Object... args) {
+                return body.invoke(args);
+            }
+            
+        };
+    }
+    
+    public static Method create(ArgType returnType, ArgType[] argTypes, MethodBody body) {
+        return new Method(returnType, argTypes) {
+
+            @Override
+            public Object invoke(Object... args) {
+                return body.invoke(args);
+            }
+            
+        };
+    }
+    
+    
+    
+    private void checkSignature() {
+        if (signature == null || signature.address == 0) {
+            throw new RuntimeException("Attempt to get number of arguments on method with null signature");
+        }
+    }
+    
+    public int getNumberOfArguments() {
+        checkSignature();
+        return Objc.eval(signature, "numberOfArguments").asInt()-2;
+    }
+    
+    public ArgType getMethodReturnType() {
+        checkSignature();
+        String str = Objc.eval(signature, "methodReturnType").asString();
+        if (str == null || str.length() == 0) {
+            throw new RuntimeException("Unexpected value for method return type");
+        }
+        return getArgTypeForCode(str);
+    }
+    
+    public ArgType getArgumentTypeAtIndex(int index) {
+        checkSignature();
+        String str = Objc.eval(signature, "getArgumentTypeAtIndex:", index+2).asString();
+        if (str == null || str.length() == 0) {
+            throw new RuntimeException("Unexpected value for method return type");
+        }
+        return getArgTypeForCode(str);
+    }
+    
+    
+    public static ArgType getArgTypeForCode(String code) {
+        char c = code.charAt(0);
+        switch (c) {
+            case 'c': return ArgType.Char;
+            case 'i': return ArgType.Int;
+            case 's': return ArgType.Short;
+            case 'l': return ArgType.Long;
+            case 'q': return ArgType.LongLong;
+            case 'C': return ArgType.UnsignedChar;
+            case 'I': return ArgType.UnsignedInt;
+            case 'S': return ArgType.UnsignedShort;
+            case 'Q': return ArgType.UnsignedLongLong;
+            case 'f': return ArgType.Float;
+            case 'd': return ArgType.Double;
+            case 'B': return ArgType.Bool;
+            case 'v': return ArgType.Void;
+            case '*': return ArgType.CString;
+            case '@': return ArgType.Object;
+            case '#': return ArgType.Class;
+            case '^': return ArgType.Pointer;
+            default: throw new RuntimeException("Unsupported return type for signature "+code);
+                
+                
+        }
+        
+    }
+    
+    public static String createSignature(ArgType... argTypes) {
+        StringBuilder sb = new StringBuilder();
+        for (ArgType cls : argTypes) {
+            if (cls == null) {
+                sb.append("v");
+            } else {
+                sb.append(cls.getCode());
+            }
+        }
+        return sb.toString();
     }
     
     public String getSelectorName() {
@@ -78,7 +214,7 @@ public abstract class Method {
         return String.valueOf(invoke(args));
     }
     
-    protected Pointer getArgAsPointer(Object arg) {
+    public static Pointer getArgAsPointer(Object arg) {
         if (arg instanceof Pointer) {
             return (Pointer)arg;
             
@@ -91,7 +227,7 @@ public abstract class Method {
         }
     }
     
-    protected int getArgAsInt(Object arg) {
+    public static int getArgAsInt(Object arg) {
         if (arg instanceof Number) {
             return ((Number)arg).intValue();
         } else if (arg instanceof Pointer) {
@@ -101,11 +237,11 @@ public abstract class Method {
         }
     }
     
-    protected boolean getArgAsBoolean(Object arg) {
+    public static boolean getArgAsBoolean(Object arg) {
         return getArgAsInt(arg) != 0;
     }
     
-    protected double getArgAsDouble(Object arg) {
+    public static double getArgAsDouble(Object arg) {
         if (arg instanceof Number) {
             return ((Number)arg).doubleValue();
         } else {
@@ -113,7 +249,7 @@ public abstract class Method {
         }
     }
     
-    protected String getArgAsString(Object arg) {
+    public static String getArgAsString(Object arg) {
         if (arg instanceof String) {
             return (String)arg;
         } else if (arg instanceof Pointer) {
