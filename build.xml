@@ -78,10 +78,17 @@
         <mkdir dir="dist" />
         <zip basedir="build/lib" compress="true" destfile="dist/${application.title}.cn1lib" />
         <copy file="dist/${application.title}.cn1lib" todir="CN1ObjCBridgeDemo/lib"/>
-        <ant dir="CN1ObjCBridgeDemo" target="refresh-libs" usenativebasedir="true"/>
+        <ant dir="CN1ObjCBridgeDemo" target="refresh-libs-impl" usenativebasedir="true"/>
+        <antcall target="copy-to-scandit"/>
+    </target>
+
+    <target name="check-scandit">
+        <available file="../cn1-codescan-scandit" property="scandit.exists"/>
+    </target>
+    <target name="copy-to-scandit" depends="check-scandit" if="scandit.exists">
         <copy file="dist/${application.title}.jar" todir="../cn1-codescan-scandit/lib"/>
         <copy file="dist/${application.title}.cn1lib" todir="../cn1-codescan-scandit/CN1ScanditTests/lib"/>
-        <ant dir="../cn1-codescan-scandit/CN1ScanditTests" target="refresh-libs" usenativebasedir="true"/>
+        <ant dir="../cn1-codescan-scandit/CN1ScanditTests" target="refresh-libs-impl" usenativebasedir="true"/>
     </target>
 
     <target name="buildNativeRIM">
