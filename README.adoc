@@ -36,12 +36,12 @@ NOTE: `eval()` allows you to send messages to classes and objects in the objecti
 ----
 // Get a UIColor blue instance
 //https://developer.apple.com/documentation/uikit/uicolor/1621947-bluecolor?language=objc
-Pointer blue = eval('UIColor.blueColor').asPointer();
+Pointer blue = eval("UIColor.blueColor").asPointer();
   // UIColor* button = [UIColor blueColor];
 
 
 // Get reference to CodenameOne_GLViewController instance
-Pointer cn1ViewController = eval('CodenameOne_GLViewController.instance').asPointer();
+Pointer cn1ViewController = eval("CodenameOne_GLViewController.instance").asPointer();
   // CodenameOne_GLViewController* cn1ViewController = [CodenameOne_GLViewController instance];
 
 // Create a UIButton
