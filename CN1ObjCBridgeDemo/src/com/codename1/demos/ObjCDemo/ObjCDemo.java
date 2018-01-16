@@ -57,20 +57,24 @@ public class ObjCDemo {
         btn.addActionListener(e->{
             Objc.eval("CN1ObjcTester.runIntBlock:withArg:", Method.create(ArgType.Int, args->{
                 Log.p("Running int block with arg "+args[0]);
+                return null;
             }), 27);
             
             Objc.eval("CN1ObjcTester.runFloatBlock:withArg:", Method.create(ArgType.Float, args->{
                 Log.p("Running float block with arg "+Method.getArgAsDouble(args[0]));
+                return null;
             }), 27.5f);
             
             Objc.eval("CN1ObjcTester.runDoubleBlock:withArg:", Method.create(ArgType.Double, args->{
                 Log.p("Running double block with arg "+Method.getArgAsDouble(args[0]));
+                return null;
             }), 27.5f);
             
             Objc.eval("CN1ObjcTester.runObjectBlock:withArg:", Method.create(ArgType.Object, args->{
                 Log.p("Running Object block.  Main screen scale is "+
                         Objc.eval(Method.getArgAsPointer(args[0]), "scale").asDouble()
                 );
+                return null;
             }), Objc.eval("UIScreen.mainScreen").asPointer());
         });
         hi.add(btn);
