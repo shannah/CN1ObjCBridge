@@ -82,7 +82,7 @@
             vendor="${codename1.vendor}"
             subtitle="${codename1.secondaryTitle}"
             
-            targetType="debug_iphone_steve"
+            targetType="iphone"
             certificate="${codename1.ios.debug.certificate}"
             certPassword="${codename1.ios.debug.certificatePassword}"
             provisioningProfile="${codename1.ios.debug.provision}"

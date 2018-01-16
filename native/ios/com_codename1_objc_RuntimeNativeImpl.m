@@ -37,6 +37,8 @@
 -(double)objc_msgSend_fpret:(long long)param param1:(long long)param1 param2:(NSString*)param2{
     NSData *data = [param2 dataUsingEncoding:NSUTF8StringEncoding];
     NSArray *nsargs = (NSArray*)[NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    NSMethodSignature* sig = [((id)param) methodSignatureForSelector:(SEL)param1];
+    const char* retType = [sig methodReturnType];
     
     ffim_cif cif;
     ffim_type *args[[nsargs count] + 2];
@@ -65,8 +67,10 @@
     int index=2;
     for (NSDictionary* item in nsargs) {
         NSString* type = [item objectForKey:@"type"];
+        const char* typeCode = [sig getArgumentTypeAtIndex:index];
         NSObject* val = [item objectForKey:@"value"];
         if ([type isEqualToString:@"String"]) {
+            //if (strcmp(type, "@"))
             args[index] = &ffim_type_pointer;
             pointerValues[index] = (void*)[((NSString*)val) UTF8String];
             values[index] = &(pointerValues[index]);
@@ -74,11 +78,11 @@
             args[index] = &ffim_type_sint32;
             intValues[index] = (JAVA_INT)[((NSNumber*)val) intValue];
             values[index] = &(intValues[index]);
-        } else if ([type isEqualToString:@"float"]) {
+        } else if (strcmp(typeCode, "f") == 0) {
             args[index] = &ffim_type_float;
             floatValues[index] = (float)[((NSNumber*)val) floatValue];
             values[index] = &(floatValues[index]);
-        } else if ([type isEqualToString:@"double"]) {
+        } else if (strcmp(typeCode, "d") == 0 ) {
             args[index] = &ffim_type_double;
             doubleValues[index] = (double)[((NSNumber*)val) doubleValue];
             values[index] = &(doubleValues[index]);
@@ -96,7 +100,11 @@
                               &ffim_type_double, args) == FFIM_OK)
     {
         
+#if defined(__i386__) || defined(__x86_64__)
         ffi_mini_call(&cif, ((double(*)(id,SEL,...))objc_msgSend_fpret), &retVal, values);
+#else
+        ffi_mini_call(&cif, ((double(*)(id,SEL,...))objc_msgSend), &retVal, values);
+#endif
         /* rc now holds the result of the call to puts */
         return (double)retVal;
         
@@ -205,6 +213,7 @@
     //}
     NSData *data = [param2 dataUsingEncoding:NSUTF8StringEncoding];
     NSArray *nsargs = (NSArray*)[NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    NSMethodSignature* sig = [((id)param) methodSignatureForSelector:(SEL)param1];
     
     ffim_cif cif;
     ffim_type *args[[nsargs count] + 2];
@@ -231,8 +240,10 @@
     int index=2;
     for (NSDictionary* item in nsargs) {
         NSString* type = [item objectForKey:@"type"];
+        const char* typeCode = [sig getArgumentTypeAtIndex:index];
         NSObject* val = [item objectForKey:@"value"];
         if ([type isEqualToString:@"String"]) {
+        //if (strcmp(type, "@"))
             args[index] = &ffim_type_pointer;
             pointerValues[index] = (void*)[((NSString*)val) UTF8String];
             values[index] = &(pointerValues[index]);
@@ -240,11 +251,11 @@
             args[index] = &ffim_type_sint32;
             intValues[index] = (JAVA_INT)[((NSNumber*)val) intValue];
             values[index] = &(intValues[index]);
-        } else if ([type isEqualToString:@"float"]) {
+        } else if (strcmp(typeCode, "f") == 0) {
             args[index] = &ffim_type_float;
             floatValues[index] = (float)[((NSNumber*)val) floatValue];
             values[index] = &(floatValues[index]);
-        } else if ([type isEqualToString:@"double"]) {
+        } else if (strcmp(typeCode, "d") == 0 ) {
             args[index] = &ffim_type_double;
             doubleValues[index] = (double)[((NSNumber*)val) doubleValue];
             values[index] = &(doubleValues[index]);
