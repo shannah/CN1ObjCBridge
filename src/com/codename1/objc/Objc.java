@@ -5,7 +5,6 @@
  */
 package com.codename1.objc;
 
-import com.codename1.io.Log;
 import com.codename1.io.Util;
 import com.codename1.objc.Runtime.Block;
 import com.codename1.ui.Display;
@@ -13,7 +12,6 @@ import com.codename1.ui.PeerComponent;
 import com.codename1.ui.geom.Point2D;
 import com.codename1.ui.geom.Rectangle2D;
 import com.codename1.util.StringUtil;
-import com.codename1.util.SuccessCallback;
 import java.util.Arrays;
 
 
@@ -22,6 +20,11 @@ import java.util.Arrays;
  * @author shannah
  */
 public class Objc {
+    
+    /**
+     * Interface used to build a UIView.  The primary purpose of this is as a lambda argument
+     * to {@link #createPeerComponent(com.codename1.objc.Objc.UIViewBuilder) }
+     */
     public static interface UIViewBuilder {
         public Pointer buildView();
     }
@@ -239,6 +242,10 @@ public class Objc {
         return eval(null, script, args);
     }
     
+    /**
+     * An exception thrown in {@link #eval(java.lang.String, java.lang.Object...) } if there is a 
+     * problem.
+     */
     public static class ObjectiveCException extends RuntimeException {
         String expression;
         Object[] args;
@@ -394,6 +401,10 @@ public class Objc {
         return Runtime.getInstance().createBlock(m);
     }
     
+    /**
+     * A convenience wrapper for creating an objective-C delegate.  Objects
+     * of this type can be passed to {@link 
+     */
     public static class DelegateObject implements Peerable {
         private final NSObject cls;
         
@@ -604,8 +615,39 @@ public class Objc {
         Objc.eval(controller, "dismissViewControllerAnimated:completion:", animated, onCompletion);
     }
     
+    /**
+     * Checks if objective-c is supported on this platform.
+     * @return 
+     */
     public static boolean isSupported() {
         return Runtime.getInstance().isSupported();
+    }
+    
+    /**
+     * Checks if pointer is null.
+     * @param pointer
+     * @return 
+     */
+    public static boolean isNull(Pointer pointer) {
+        return Pointer.isNull(pointer);
+    }
+    
+    /**
+     * Gets pointer to Objective-C class - or null.
+     * @param className The name of the class.
+     * @return 
+     */
+    public static Pointer getClass(String className) {
+        return Runtime.getInstance().cls(className);
+    }
+    
+    /**
+     * Checks if a class exists in Objective-C runtime.
+     * @param className
+     * @return 
+     */
+    public static boolean classExists(String className) {
+        return !isNull(getClass(className));
     }
 }
 

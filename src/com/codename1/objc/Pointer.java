@@ -15,6 +15,10 @@ public class Pointer {
         this.address = address;
     }
 
+    public static boolean isNull(Pointer pointer) {
+        return pointer == null || pointer.address == 0;
+    }
+    
     @Override
     public int hashCode() {
         return new Long(address).hashCode();

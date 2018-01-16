@@ -1,11 +1,11 @@
 package com.codename1.demos.ObjCDemo;
 
 
+import com.codename1.components.ToastBar;
 import static com.codename1.ui.CN.*;
 import com.codename1.ui.Display;
 import com.codename1.ui.Form;
 import com.codename1.ui.Dialog;
-import com.codename1.ui.Label;
 import com.codename1.ui.plaf.UIManager;
 import com.codename1.ui.util.Resources;
 import com.codename1.io.Log;
@@ -15,20 +15,16 @@ import com.codename1.objc.Method.ArgType;
 import com.codename1.objc.NSObject;
 import com.codename1.objc.Objc;
 import com.codename1.objc.Objc.CallbackMethod;
-import com.codename1.objc.Objc.ObjcResult;
 import static com.codename1.objc.Objc.createPeerComponent;
 import static com.codename1.objc.Objc.eval;
 import static com.codename1.objc.Objc.makeCallback;
 import com.codename1.objc.Proxy;
 import com.codename1.ui.Toolbar;
-import java.io.IOException;
-import com.codename1.ui.layouts.BoxLayout;
 import com.codename1.objc.Runtime;
 import com.codename1.ui.PeerComponent;
 import com.codename1.ui.layouts.BorderLayout;
 
 import com.codename1.objc.Pointer;
-import com.codename1.objc.Runtime.Struct;
 import com.codename1.ui.Button;
 import com.codename1.ui.geom.Rectangle2D;
 
@@ -55,27 +51,31 @@ public class ObjCDemo {
         Form hi = new Form("Test Blocks");
         Button btn = new Button("Test Blocks");
         btn.addActionListener(e->{
-            Objc.eval("CN1ObjcTester.runIntBlock:withArg:", Method.create(ArgType.Int, args->{
-                Log.p("Running int block with arg "+args[0]);
-                return null;
-            }), 27);
-            
-            Objc.eval("CN1ObjcTester.runFloatBlock:withArg:", Method.create(ArgType.Float, args->{
-                Log.p("Running float block with arg "+Method.getArgAsDouble(args[0]));
-                return null;
-            }), 27.5f);
-            
-            Objc.eval("CN1ObjcTester.runDoubleBlock:withArg:", Method.create(ArgType.Double, args->{
-                Log.p("Running double block with arg "+Method.getArgAsDouble(args[0]));
-                return null;
-            }), 27.5f);
-            
-            Objc.eval("CN1ObjcTester.runObjectBlock:withArg:", Method.create(ArgType.Object, args->{
-                Log.p("Running Object block.  Main screen scale is "+
-                        Objc.eval(Method.getArgAsPointer(args[0]), "scale").asDouble()
-                );
-                return null;
-            }), Objc.eval("UIScreen.mainScreen").asPointer());
+            if (Objc.isSupported()) {
+                Objc.eval("CN1ObjcTester.runIntBlock:withArg:", Method.create(ArgType.Int, args->{
+                    Log.p("Running int block with arg "+args[0]);
+                    return null;
+                }), 27);
+
+                Objc.eval("CN1ObjcTester.runFloatBlock:withArg:", Method.create(ArgType.Float, args->{
+                    Log.p("Running float block with arg "+Method.getArgAsDouble(args[0]));
+                    return null;
+                }), 27.5f);
+
+                Objc.eval("CN1ObjcTester.runDoubleBlock:withArg:", Method.create(ArgType.Double, args->{
+                    Log.p("Running double block with arg "+Method.getArgAsDouble(args[0]));
+                    return null;
+                }), 27.5f);
+
+                Objc.eval("CN1ObjcTester.runObjectBlock:withArg:", Method.create(ArgType.Object, args->{
+                    Log.p("Running Object block.  Main screen scale is "+
+                            Objc.eval(Method.getArgAsPointer(args[0]), "scale").asDouble()
+                    );
+                    return null;
+                }), Objc.eval("UIScreen.mainScreen").asPointer());
+            } else {
+                ToastBar.showErrorMessage("Objective-C not supported on this platform.");
+            }
         });
         hi.add(btn);
         hi.show();
@@ -90,7 +90,7 @@ public class ObjCDemo {
         }
         Form hi = new Form("Hi World", new BorderLayout());
         
-        if (Runtime.getInstance().isSupported()) {
+        if (Objc.isSupported()) {
             
             PeerComponent cmp = createPeerComponent(()->{
                 Pointer button = eval("UIButton.buttonWithType:", 0).asPointer();
