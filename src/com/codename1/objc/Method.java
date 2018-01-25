@@ -78,6 +78,10 @@ public abstract class Method {
         
     }
     
+    public Method create(MethodBody body) {
+        return create(ArgType.Void, new ArgType[0], body);
+    }
+    
     public Method(ArgType returnType, ArgType[] argTypes) {
         this(createSignature(returnType) + "@:" + createSignature(argTypes));
     }
