@@ -373,12 +373,14 @@ public class Runtime {
         return p(rt.objc_msgSend(theReceiver.address, theSelector.address, encodeJson(arguments)));
     }
     
-    public Pointer objc_msgSendSuper(Pointer superClassStruct, Pointer op, Object... arguments) {
-        return p(rt.objc_msgSendSuper(superClassStruct.address, op.address, encodeJson(arguments)));
-    }
-    public Pointer objc_msgSendSuper_stret(Pointer superClassStruct, Pointer op, Object... arguments) {
-        return p(rt.objc_msgSendSuper_stret(superClassStruct.address, op.address, encodeJson(arguments)));
-    }
+    // Commenting these out because there were compilation problems on Xcode 12 and it is hard to think
+    // of a scenario that requires these.
+    //public Pointer objc_msgSendSuper(Pointer superClassStruct, Pointer op, Object... arguments) {
+    //    return p(rt.objc_msgSendSuper(superClassStruct.address, op.address, encodeJson(arguments)));
+    //}
+    //public Pointer objc_msgSendSuper_stret(Pointer superClassStruct, Pointer op, Object... arguments) {
+    //    return p(rt.objc_msgSendSuper_stret(superClassStruct.address, op.address, encodeJson(arguments)));
+    //}
     public double objc_msgSend_fpret(Pointer self, Pointer op, Object... arguments) {
         return rt.objc_msgSend_fpret(self.address, op.address, encodeJson(arguments));
     }

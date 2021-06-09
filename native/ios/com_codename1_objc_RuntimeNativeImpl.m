@@ -682,7 +682,12 @@
 }
 
 -(long long)objc_msgSendSuper:(long long)param param1:(long long)param1 param2:(NSString*)param2{
-    return objc_msgSendSuper(param, param1, [param2 UTF8String]);
+    NSLog(@"objc_msgSendSuper is not implemented");
+    //objc_msgSendS
+    //objc_msgSendSuper_stret((id)param, (void*)param1, [param2 UTF8String]);
+    //objc_msgSendSuper_stret((void*)param, (void*)param1, [param2 UTF8String]);
+    return 0; // This needs to be fixed... need to return something here.
+    //return objc_msgSendSuper(param, param1, [param2 UTF8String]);
 }
 
 -(NSString*)utf8StringToString:(long long)param {
