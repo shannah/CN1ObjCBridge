@@ -103,7 +103,7 @@
 #if defined(__i386__) || defined(__x86_64__)
         ffi_mini_call(&cif, ((double(*)(id,SEL,...))objc_msgSend_fpret), &retVal, values);
 #else
-        ffi_mini_call(&cif, ((double(*)(id,SEL,...))objc_msgSend), &retVal, values);
+        ffi_mini_call(&cif, ((void(*)(void))objc_msgSend), &retVal, values);
 #endif
         /* rc now holds the result of the call to puts */
         return (double)retVal;
